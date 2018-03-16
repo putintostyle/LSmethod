@@ -19,66 +19,78 @@ for i in range(120,121):
     File.append('IM'+str(i))
                                         
 
-def fdm(image, image_size, phi, lambda_1, lambda_2, windowsize):
-    eps = 1e-02
+def fdm(image, image_size, phi, lambda_1, lambda_2, windowsize,its):
+    eps = 1
 
-    for i in range(1,image_size):
-        for j in range (1,image_size):
+    for i in range(0,image_size):
+        for j in range (0,image_size):
             if image[i][j]!=0:
-                fox = (phi[i][j]-phi[i-1][j]) #fx
-                foy = (phi[i][j]-phi[i][j-1]) #fy
+                fox = 1/2*(phi[i][j+1]-phi[i][j-1]) #fx
+                foy = 1/2*(phi[i+1][j]-phi[i-1][j]) #fy
                 if (fox!=0)&(foy!=0):
-                    sox = (-2*phi[i][j]+phi[i-1][j]+phi[i+1][j]) #fxx
-                    soy = (-2*phi[i][j]+phi[i][j-1]+phi[i][j+1]) #fyy
-                    soxy = 1/2*(phi[i+1][j+1]-phi[i+1][j-1]-phi[i-1][j+1]+phi[i-1][j-1]) #fxy
+                    sox = (-2*phi[i][j]+phi[i][j-1]+phi[i][j+1]) #fxx
+                    soy = (-2*phi[i][j]+phi[i-1][j]+phi[i+1][j]) #fyy
+                    soxy = 1/4*(phi[i+1][j+1]-phi[i+1][j-1]-phi[i-1][j+1]+phi[i-1][j-1]) #fxy
                     length = (fox*fox+foy*foy) #(fx^2 +fy^2)
-                    length_23 = length**(1.5)
+                    length_23 = length**1.5
                     #delta function
                     #if indicate >= 5:
                     #    indicate = 1
-    
-                indicate = eps/(3.14*(eps*eps + phi[i][j]*phi[i][j]))
-                loce = 0 #local energy
+                
+                indicate = (eps/(3.14*(eps*eps + phi[i][j]*phi[i][j])))
+                loce = 0.0 #local energy
                 local_image = []
                 local_index = []
-                #mean_container = []
+                mean_container = []
                 for k in range(0-int((windowsize-1)/2),1+int((windowsize-1)/2)) :  #local energy setting
                     for l in range(0-int((windowsize-1)/2),1+int((windowsize-1)/2)):
                         if (phi[i-k][j-l]>=0)&((i-k)>0)&((j-l)>0)&((i-k)<image_size)&((j-l)<image_size):
                             local_index.append([k,l,1])
                             if(((i-k)>0)&((j-l)>0)&((i-k)<image_size)&((j-l)<image_size)):
                                 local_image.append(image[i-k][j-l])
-                                #mean_container.append(image[i-k][j-l])
+                                mean_container.append(image[i-k][j-l])
                             else:
                                 local_image.append("Null")
+                                mean_container.append(0)
+
                                 
                         else:
                             local_index.append([k,l,0])
                             local_image.append("Null")
+                            mean_container.append(0)
 
                         
                 
                 start_local_time = time.time()
                 f = local_f(local_image,windowsize,local_index)  #compute local energy
                 
-                end_local_time = time.time()
+                #end_local_time = time.time()
                 #print(f)
-                time_loc = start_local_time-end_local_time
-                """print("location_x = "+str(i)+"\n")
-                print("location_y = "+str(j)+"\n")
-                print("loacl_energy_computation_time = " + str(abs(time_loc)) + "\n")
-                """
+                #time_loc = start_local_time-end_local_time
+                
     
                 for k in range(0-int((windowsize-1)/2),1+int((windowsize-1)/2)) :
-                    for l in range(0-int((windowsize-1)/2),1+int((windowsize-1)/2)): 
-                        loce += ((1+f[k+int((windowsize-1)/2)][l+int((windowsize-1)/2)]+0.5*f[k+int((windowsize-1)/2)][l+int((windowsize-1)/2)] - image[i][j]))**2 * ((k)**2+(l)**2)/(windowsize*windowsize)
+                    for l in range(0-int((windowsize-1)/2),1+int((windowsize-1)/2)):
+                        difference = (f[k+int((windowsize-1)/2)][l+int((windowsize-1)/2)]-image[i][j])
+                        #print("difference = " + str(difference)) 
+                        loce += (1+difference + difference**2 /2)#* ((k)**2+(l)**2))/(windowsize*windowsize)
+               # loce = abs((np.mean(mean_container) - image[i][j]))
+                print("local energy in (" + str(i) + ',' + str(j) + ") is " + str(loce) + "\n" )   
                 
-                   
-                #loce = (np.mean(mean_container) - image[i][j])**2
-                if (fox!=0)&(foy!=0):
-                    phi[i][j] += indicate*((lambda_2*(fox*fox*sox+foy*foy*soy-fox*foy*soxy)/length_23)-loce-lambda_1)
+
+                if((fox!=0)&(foy!=0)):
+                    #if its>8:
+                    #print("origin phi in (" + str(i) + ',' + str(j) + ") is " +str(phi[i][j]) + "\n" ) #debug
+                    phi[i][j] += indicate*((lambda_2*(-fox*fox*soy-foy*foy*sox+2*fox*foy*soxy)/length_23)-loce/(math.exp(1) *windowsize*windowsize)-lambda_1)
+                    #if its>8:
+                    #print("modify phi in (" + str(i) + ',' + str(j) + ") is " +str(phi[i][j]) + "\n" )
+                    #print("kappa in (" + str(i) + ',' + str(j) + ") is " +str((fox*fox*sox+foy*foy*soy-fox*foy*soxy)/length_23) + "\n" )
                 else:
-                    phi[i][j] -= indicate*(loce+lambda_1)
+                    #if its>8:
+                    #print("origin phi in (" + str(i) + ',' + str(j) + ") is " +str(phi[i][j]) + "\n" )
+                    phi[i][j] += indicate*(-loce/(math.exp(1) *windowsize*windowsize)-lambda_1)
+                    #if its>8:
+                    #print("modify phi in (" + str(i) + ',' + str(j) + ") is " +str(phi[i][j]) + "\n" )
     return phi
 
 def local_f(local_image, windowsize,index):
@@ -126,16 +138,18 @@ def local_f(local_image, windowsize,index):
     return np.reshape(f,(windowsize,windowsize))
 
 
-def initial_level_set(image_size, initial_value_1, initial_value_2):
+def initial_level_set(image_size):
     phi_graph = [[0]*image_size for i in range(image_size)]
     
     for i in range(0,image_size):
         for j in range(0,image_size):
-            data = -((350-i)**2+(300-j)**2)+40**2
-            if abs(data) < 7**2:
+            data = math.sqrt((250-i)**2+(200-j)**2)-50
+            if abs(data) <1:
                 phi_graph[i][j] = 0
-            else:
-                phi_graph[i][j] = data
+            elif data > 1:
+                phi_graph[i][j] = -data
+            elif data < -1:
+                phi_graph[i][j] = -data/70
             """if (i>127+50)&(i<384+50)&(j>127)&(j<384):
                 phi_graph[i][j] = initial_value_1
             elif(((i==127+50)&((j>128)&(j<384))) | ((i==256+50)&((j>128)&(j<384))) | ((j==256)&((i>128+50)&(i<384+50))) | ((j==127)&((i>128+50)&(i<384+50)))):
@@ -144,6 +158,13 @@ def initial_level_set(image_size, initial_value_1, initial_value_2):
                 phi_graph[i][j] = initial_value_2"""
     return phi_graph
 
+def re_range(image):
+    maxi = np.matrix(image).max()
+    mini = np.matrix(image).min()
+    image = np.array(image)/(maxi-mini)
+    
+    return image
+            
 def main(file):
     ds=dicom.read_file('D:\\MRI_segmentation\\T1 3D\\SE12\\'+file)#+'.dcm')
     #ds=dicom.read_file(file)#+'.dcm')
@@ -153,21 +174,24 @@ def main(file):
     
     #ds_pixel=threads_hold(ds.pixel_array,compute_sta(ds.pixel_array)[0]+0.1*compute_sta(ds.pixel_array)[1],"denoise")
     
-    ds_pixel = np.array(ds.pixel_array).astype(int)
+    ds_pixel = re_range(ds.pixel_array)
     
-    phi = initial_level_set(pixel_size, 10, -10)
-    for i in range(5):
+    phi = initial_level_set(pixel_size)
+    
+    #for i in range(1):
         
-        phi = fdm(ds_pixel,pixel_size,phi, 1,1,5)
+        #phi = fdm(ds_pixel,pixel_size,phi, 1,1,3,i)
     
     image = [[0]*pixel_size for i in range(pixel_size)]
     for i in range(pixel_size):
         for j in range(pixel_size):
-            if phi[i][j]>0:
+            if phi[i][j] != 0 :
                 image[i][j] = ds_pixel[i][j]
     
     plt.imshow(image, cmap = plt.cm.bone)
     plt.show()
+
+
 
 
 start=time.time()
