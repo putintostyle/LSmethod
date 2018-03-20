@@ -19,7 +19,19 @@ for i in range(120,121):
     File.append('IM'+str(i))
                                         
 
-def fdm(image, image_size, phi, lambda1, lambda2, lambda3, lambda4):
+def image_feature(image, image_size):
+    location_x = np.array([np.arange(image_size).tolist() for i in range(image_size)])
+    location_y = np.array([i*(np.ones(image_size)).tolist() for i in range(image_size)])
+    image = np.array(image)
+    image_x = np.gradient(image)[1]
+    image_y = np.gradient(image)[0]
+    image_xx = np.gradient(image_x)[1]
+    image_yy = np.gradient(image_y)[0]
+    image_xy = np.gradient(image_x)[0]
+    curvature_image = (image_x**2*image_yy + image_xx*image_y**2 - 2*image_xy)/((image_x**2+image_y**2 + 1e-04)**(3/2))
+    return[location_x,location_y,image_x,image_y, image_xx, image_yy, image_xy, curvature_image]
+
+def fdm(image, image_feature, image_size, phi, lambda1, lambda2, lambda3, lambda4):
     #image = np.int_(image)
     #x 方向是j的位置
     #y 方向是i的位置
@@ -31,13 +43,27 @@ def fdm(image, image_size, phi, lambda1, lambda2, lambda3, lambda4):
     phi_yy = np.gradient(phi_y)[0]
     phi_xy = np.gradient(phi_x)[0]
     #phi_yx = np.gradient(phi_y)[1]
-    curvature = (phi_x**2*phi_yy + phi_xx*phi_y**2 - 2*phi_xy)/((phi_x**2+phi_y**2 + 1e-04)**(3/2))
+    curvature_phi = (phi_x**2*phi_yy + phi_xx*phi_y**2 - 2*phi_xy)/((phi_x**2+phi_y**2 + 1e-04)**(3/2))
     #regularization = curvature*lambda1
     #for i in range(0,511):
         #for j in range (0,511):
     delta_function = (eps/(3.14*(eps*eps + phi**2)))
 
-    Hea = 0.5*(1 + (2 / 3.14)*np.arctan(phi/eps)) 
+    ######################            DATA FEATURE            ######################
+    location_x = image_feature[0]
+    location_y = image_feature[1]
+    image = np.array(image)
+    image_x = image_feature[2]
+    image_y = image_feature[3]
+    image_xx = image_feature[4]
+    image_yy = image_feature[5]
+    image_xy = image_feature[6]
+    curvature_image = image_feature[7]
+    
+    
+    
+    Hea = 0.5*(1 + (2 / 3.14)*np.arctan(phi/eps))
+
 
     s1=Hea*image 
     s2=(1-Hea)*image 
@@ -45,7 +71,7 @@ def fdm(image, image_size, phi, lambda1, lambda2, lambda3, lambda4):
     C1 = s1.sum()/ Hea.sum() 
     C2 = s2.sum()/ s3.sum() 
 
-    phi = phi + delta_function*(lambda1*curvature - lambda2 - lambda3*(image - C1)**2 +lambda4*(image - C2)**2)
+    phi = phi + delta_function*(lambda1*curvature_phi - lambda2 - lambda3*(image - C1)**2 +lambda4*(image - C2)**2)
        
     return phi
 
@@ -101,10 +127,11 @@ def main(file):
     
     phi = (initial_level_set(pixel_size,390,130,20))
 
+    image_feature_data = image_feature(ds_pixel,pixel_size)
     
-    for i in range(2000):
+    for i in range(2):
         
-        phi = fdm(ds_pixel,pixel_size,phi, 1,1,1,1)
+        phi = fdm(ds_pixel,image_feature_data,pixel_size,phi, 1,1,1,1)
     
     image = [[0]*pixel_size for i in range(pixel_size)]
     for i in range(pixel_size):
