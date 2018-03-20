@@ -1,0 +1,128 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Mar 12 22:49:15 2018
+
+@author: User
+"""
+
+import dicom
+import matplotlib.pyplot as plt
+import math
+import numpy as np
+import time
+#import cv2
+import copy
+#File=['IM1.dcm']
+File=[]
+start=time.time()
+for i in range(120,121):
+    File.append('IM'+str(i))
+                                        
+
+def fdm(image, image_size, phi, lambda1, lambda2, lambda3, lambda4):
+    #image = np.int_(image)
+    #x 方向是j的位置
+    #y 方向是i的位置
+    eps = 1
+    phi = np.array(phi) 
+    phi_x = np.gradient(phi)[1] #他跟我們的直覺不一樣 1 是x方向
+    phi_y = np.gradient(phi)[0]#.transpose()
+    phi_xx = np.gradient(phi_x)[1]
+    phi_yy = np.gradient(phi_y)[0]
+    phi_xy = np.gradient(phi_x)[0]
+    #phi_yx = np.gradient(phi_y)[1]
+    curvature = (phi_x**2*phi_yy + phi_xx*phi_y**2 - 2*phi_xy)/((phi_x**2+phi_y**2 + 1e-04)**(3/2))
+    #regularization = curvature*lambda1
+    #for i in range(0,511):
+        #for j in range (0,511):
+    delta_function = (eps/(3.14*(eps*eps + phi**2)))
+
+    Hea = 0.5*(1 + (2 / 3.14)*np.arctan(phi/eps)) 
+
+    s1=Hea*image 
+    s2=(1-Hea)*image 
+    s3=1-Hea 
+    C1 = s1.sum()/ Hea.sum() 
+    C2 = s2.sum()/ s3.sum() 
+
+    phi = phi + delta_function*(lambda1*curvature - lambda2 - lambda3*(image - C1)**2 +lambda4*(image - C2)**2)
+       
+    return phi
+
+
+
+def initial_level_set(image_size,center_x, center_y,radius):
+    #phi_graph = np.ones((image_size,image_size),np.int8)
+    phi_graph = np.zeros((image_size,image_size))
+    """a = (center_x-int(radius/2))
+    b = (center_x+int(radius/2))
+    c = (center_y-int(radius/2))
+    d = (center_y+int(radius/2))
+    phi_graph[a:b,c:d] = -1
+    phi_graph = -phi_graph"""
+
+
+    for i in range(0,image_size):
+        for j in range(0,image_size):
+            data = math.sqrt((center_y-i)**2+(center_x-j)**2)-radius
+            
+            if abs(int(data)) == 0:
+                phi_graph[i][j] = 0
+            elif int(data) > 0:
+                phi_graph[i][j] = -data
+            elif int(data) < 0:
+                phi_graph[i][j] = -data
+    return phi_graph
+
+def re_scaling(image):
+    #print(image[200][200].dtype)
+    #print("GOOOOOOOOOO")
+    a = (255)
+    maxi = np.matrix(image).max()
+    
+    mini = np.matrix(image).min()
+    
+    image = np.uint8((np.array(image)/(maxi-mini)*255))
+    
+    return image
+            
+def main(file):
+    ds=dicom.read_file('D:\\MRI_segmentation\\T1 3D\\SE12\\'+file)#+'.dcm')
+    #ds=dicom.read_file(file)#+'.dcm')
+    
+    
+    pixel_size=len(ds.pixel_array)
+    #plt.imshow((ds.pixel_array))
+    #plt.show()
+    #print(ds.pixel_array.dtype)
+    #ds_pixel=threads_hold(ds.pixel_array,compute_sta(ds.pixel_array)[0]+0.1*compute_sta(ds.pixel_array)[1],"denoise")
+    
+    ds_pixel = re_scaling(ds.pixel_array)
+    
+    phi = (initial_level_set(pixel_size,390,130,20))
+
+    
+    for i in range(2000):
+        
+        phi = fdm(ds_pixel,pixel_size,phi, 1,1,1,1)
+    
+    image = [[0]*pixel_size for i in range(pixel_size)]
+    for i in range(pixel_size):
+        for j in range(pixel_size):
+            if phi[i][j] < 0 :
+                image[i][j] = ds_pixel[i][j]
+    image = np.array(image)
+    
+    print(ds_pixel.dtype)
+    plt.imshow(image,cmap = plt.cm.bone)
+    plt.show()
+
+
+
+
+start=time.time()
+
+for i in File:
+    main(i)
+end=time.time()
+print(end-start)
