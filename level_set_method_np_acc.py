@@ -18,10 +18,14 @@ start=time.time()
 for i in range(120,121):
     File.append('IM'+str(i))
                                         
+def convert2polar(x,y,image_size,center):
+    r = np.sqrt((x-center)**2+(y-center)**2)
+    theta = np.arctan2(y-center,x-center)* 180 / np.pi
+    return [r,theta]
 
 def image_feature(image, image_size):
     location_x = np.array([np.arange(image_size).tolist() for i in range(image_size)])
-    location_y = np.array([i*(np.ones(image_size)).tolist() for i in range(image_size)])
+    location_y = np.array([(i*np.ones(image_size)).tolist() for i in range(image_size)])
     image = np.array(image)
     image_x = np.gradient(image)[1]
     image_y = np.gradient(image)[0]
@@ -31,7 +35,7 @@ def image_feature(image, image_size):
     curvature_image = (image_x**2*image_yy + image_xx*image_y**2 - 2*image_xy)/((image_x**2+image_y**2 + 1e-04)**(3/2))
     return[location_x,location_y,image_x,image_y, image_xx, image_yy, image_xy, curvature_image]
 
-def fdm(image, image_feature, image_size, phi, lambda1, lambda2, lambda3, lambda4):
+def fdm(image, image_feature,polar_coordinate, image_size, phi, lambda1, lambda2, lambda3, lambda4):
     #image = np.int_(image)
     #x 方向是j的位置
     #y 方向是i的位置
@@ -50,6 +54,7 @@ def fdm(image, image_feature, image_size, phi, lambda1, lambda2, lambda3, lambda
     delta_function = (eps/(3.14*(eps*eps + phi**2)))
 
     ######################            DATA FEATURE            ######################
+    
     location_x = image_feature[0]
     location_y = image_feature[1]
     image = np.array(image)
@@ -60,7 +65,11 @@ def fdm(image, image_feature, image_size, phi, lambda1, lambda2, lambda3, lambda
     image_xy = image_feature[6]
     curvature_image = image_feature[7]
     
-    
+    ######################             Polar coordinate        #######################
+    r = polar_coordinate[0]
+    theta = polar_coordinate[1]
+
+
     
     Hea = 0.5*(1 + (2 / 3.14)*np.arctan(phi/eps))
 
@@ -71,8 +80,8 @@ def fdm(image, image_feature, image_size, phi, lambda1, lambda2, lambda3, lambda
     C1 = s1.sum()/ Hea.sum() 
     C2 = s2.sum()/ s3.sum() 
 
-    phi = phi + delta_function*(lambda1*curvature_phi - lambda2 - lambda3*(image - C1)**2 +lambda4*(image - C2)**2)
-       
+    phi = phi + delta_function*(lambda1*curvature_phi - lambda2 - lambda3*(image - C1)**2 + lambda4*(image - C2)**2)
+      
     return phi
 
 
@@ -123,26 +132,27 @@ def main(file):
     #print(ds.pixel_array.dtype)
     #ds_pixel=threads_hold(ds.pixel_array,compute_sta(ds.pixel_array)[0]+0.1*compute_sta(ds.pixel_array)[1],"denoise")
     
-    ds_pixel = re_scaling(ds.pixel_array)
+    ds_pixel = ds.pixel_array#re_scaling(ds.pixel_array)
     
-    phi = (initial_level_set(pixel_size,390,130,20))
+    phi = (initial_level_set(pixel_size,250,250,150)) #390 130 20
 
     image_feature_data = image_feature(ds_pixel,pixel_size)
-    
-    for i in range(2):
+    polar_coordinate = convert2polar(image_feature_data[0],image_feature_data[1],pixel_size,int(pixel_size/2))
+    for it in range(5):
         
-        phi = fdm(ds_pixel,image_feature_data,pixel_size,phi, 1,1,1,1)
+        phi = fdm(ds_pixel,image_feature_data,polar_coordinate,pixel_size,phi, 1,1,1.5,0.02)
     
-    image = [[0]*pixel_size for i in range(pixel_size)]
-    for i in range(pixel_size):
-        for j in range(pixel_size):
-            if phi[i][j] < 0 :
-                image[i][j] = ds_pixel[i][j]
-    image = np.array(image)
-    
-    print(ds_pixel.dtype)
-    plt.imshow(image,cmap = plt.cm.bone)
-    plt.show()
+        image = [[0]*pixel_size for i in range(pixel_size)]
+        for i in range(pixel_size):
+            for j in range(pixel_size):
+                if phi[i][j] > 0 :
+                    image[i][j] = ds_pixel[i][j]
+        image = np.array(image)
+        
+        #print(ds_pixel.dtype)
+        plt.imshow(image,cmap = plt.cm.bone)
+        plt.suptitle("this is "+str(it))
+        plt.show()
 
 
 
