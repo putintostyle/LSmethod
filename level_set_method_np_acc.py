@@ -15,7 +15,7 @@ import copy
 #File=['IM1.dcm']
 File=[]
 start=time.time()
-for i in range(120,121):
+for i in range(89,90):
     File.append('IM'+str(i))
                                         
 def convert2polar(x,y,image_size,center):
@@ -84,8 +84,6 @@ def fdm(image, image_feature,polar_coordinate, image_size, phi, lambda1, lambda2
       
     return phi
 
-
-
 def initial_level_set(image_size,center_x, center_y,radius):
     #phi_graph = np.ones((image_size,image_size),np.int8)
     phi_graph = np.zeros((image_size,image_size))
@@ -97,7 +95,7 @@ def initial_level_set(image_size,center_x, center_y,radius):
     phi_graph = -phi_graph"""
 
 
-    for i in range(0,image_size):
+    """for i in range(0,image_size):
         for j in range(0,image_size):
             data = math.sqrt((center_y-i)**2+(center_x-j)**2)-radius
             
@@ -107,8 +105,7 @@ def initial_level_set(image_size,center_x, center_y,radius):
                 phi_graph[i][j] = -data
             elif int(data) < 0:
                 phi_graph[i][j] = -data
-    return phi_graph
-
+    return phi_graph"""
 def re_scaling(image):
     #print(image[200][200].dtype)
     #print("GOOOOOOOOOO")
@@ -127,20 +124,15 @@ def main(file):
     
     
     pixel_size=len(ds.pixel_array)
-    #plt.imshow((ds.pixel_array))
-    #plt.show()
-    #print(ds.pixel_array.dtype)
-    #ds_pixel=threads_hold(ds.pixel_array,compute_sta(ds.pixel_array)[0]+0.1*compute_sta(ds.pixel_array)[1],"denoise")
-    
-    ds_pixel = ds.pixel_array#re_scaling(ds.pixel_array)
-    
-    phi = (initial_level_set(pixel_size,250,250,150)) #390 130 20
+     
+    ds_pixel = ds.pixel_array
+    #phi = (initial_level_set(pixel_size,390,130,20)) #390 130 20
 
     image_feature_data = image_feature(ds_pixel,pixel_size)
     polar_coordinate = convert2polar(image_feature_data[0],image_feature_data[1],pixel_size,int(pixel_size/2))
-    for it in range(5):
+    """for it in range(10):
         
-        phi = fdm(ds_pixel,image_feature_data,polar_coordinate,pixel_size,phi, 1,1,1.5,0.02)
+        phi = fdm(ds_pixel,image_feature_data,polar_coordinate,pixel_size,phi, 1,1,1,0.2)
     
         image = [[0]*pixel_size for i in range(pixel_size)]
         for i in range(pixel_size):
@@ -152,11 +144,22 @@ def main(file):
         #print(ds_pixel.dtype)
         plt.imshow(image,cmap = plt.cm.bone)
         plt.suptitle("this is "+str(it))
-        plt.show()
+        plt.show()"""
+    test(polar_coordinate[0],ds_pixel)
 
 
 
-
+def test(radius,intensity):
+    x = np.linspace(1,512*512,512*512)
+    feature_r = np.zeros((512*512,1))
+    feature_int = np.zeros((512*512,1))
+    for i in range(0,512):
+        for j in range(0,512):
+            feature_r[i*512+j] = radius[i][j]
+            feature_int[i*512+j] = intensity[i][j]
+    
+    plt.scatter(feature_r, feature_int)
+    plt.show()
 start=time.time()
 
 for i in File:
