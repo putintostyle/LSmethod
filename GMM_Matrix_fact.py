@@ -18,7 +18,7 @@ from sklearn import preprocessing
 #File=['IM1.dcm']
 File=[]
 start=time.time()
-for i in range(120,121):
+for i in range(82,83):
     File.append('IM'+str(i))
                                         
 def convert2polar(x,y,image_size,center):
@@ -56,11 +56,10 @@ def Gaussian_Mixture_Model(feature_matrix,cluster): # x,y,I,Ix,Iy,Ixy,Ixx,Iyy,k,
     feature_10 = feature_matrix[10].flatten()
     feature_11 = feature_matrix[11].flatten()"""
     X = [[feature_4[i],feature_2[i]] for i in range(0,len(feature_2))]#,feature_3[i],feature_4[i],feature_5[i],feature_6[i],feature_7[i],feature_8[i],feature_9[i],feature_10[i],feature_11[i]] for i in range(0,len(feature_0))]
-    #gmm_mean = np.transpose(GMM(n_components=cluster).fit(X).means_)
-    #Y = np.matmul(np.linalg.pinv(gmm_mean),np.transpose(X))
-    gaussian = GMM(n_components=cluster).fit(X)
-    labels = gaussian.predict(X)
-    return labels
+    gmm_mean = np.transpose(GMM(n_components=cluster).fit(X).means_)
+    Y = np.matmul(np.linalg.pinv(gmm_mean),np.transpose(X))
+    #labels = gmm.predict(X)
+    return [gmm_mean,Y]
 def atalas(input):
     return([input[0:256,0:256],input[0:256,256:512],input[256:512,0:256],input[256:512,256:512]])
 def main(file):
@@ -90,11 +89,10 @@ def main(file):
         chart_12.append(atalas(feature)[1])
         chart_21.append(atalas(feature)[2])
         chart_22.append(atalas(feature)[3])
-    atalas_class = [chart_11,chart_12,chart_21,chart_22] 
-    label = Gaussian_Mixture_Model(image_feature_data,CLUSTER)             
+    atalas_class = [chart_11,chart_12,chart_21,chart_22]              
     #mean = Gaussian_Mixture_Model(image_feature_data)[1]
     #X = Gaussian_Mixture_Model(image_feature_data)[1]
-    """label = np.zeros((512,512))
+    label = np.zeros((512,512))
     for chart_no in range(4):
         Y = Gaussian_Mixture_Model(atalas_class[chart_no],CLUSTER)[1]
         label_local = []
@@ -121,13 +119,9 @@ def main(file):
         plt.suptitle("The label" + str(i))
         
         plt.imsave("Cluster" + str(i)+".png",image,cmap = plt.cm.bone,  dpi = 1500)
-        plt.show()""" 
-    #print(label)
-    for i in range(CLUSTER):
-        segment = np.array(ds_pixel)*((1-(np.reshape((label == i).astype(np.int),(512,512)))))
-        plt.imshow(segment,cmap = plt.cm.bone)
-        plt.suptitle("this is "+str(i))
-        plt.show()
+        plt.show() 
+    #print(label[512*200+25])
+    #segment = np.array(ds_pixel)*((1-(np.reshape((label == 8).astype(np.int),(512,512)))) + (1-(np.reshape((label == 9).astype(np.int),(512,512)))))
     #for i in range(10):
     #    segment = ((np.reshape((label == i).astype(np.int),(512,512))))
     #    plt.imshow(segment,cmap = plt.cm.bone)
