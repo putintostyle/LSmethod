@@ -37,7 +37,7 @@ def image_feature(image, image_size):
     r = np.sqrt((location_x)**2+(location_y)**2) / (np.max(np.sqrt((location_x)**2+(location_y)**2)))
     theta = np.arctan2(location_y,location_x) / (np.max(np.arctan2(location_y,location_x))-np.min(np.arctan2(location_y,location_x)))
     
-    return[location_x,location_y,image,r,theta,image_x,image_y]#,curvature_image]
+    return[location_x,location_y,image,r,np.absolute(theta),image_x,image_y]#,curvature_image]
 def local_feature(image):
     feature = []
     boundary_x = np.zeros((1,len(image)+2))
@@ -55,7 +55,7 @@ def local_feature(image):
 def Gaussian_Mixture_Model(feature_matrix,cluster): # x,y,I,Ix,Iy,Ixy,Ixx,Iyy,k,det,r,theta
     #feature_5 = local_feature(feature_2)
     
-    feature_extra = local_feature(feature_matrix[2])
+    #feature_extra = local_feature(feature_matrix[2])
     #print(np.shape(feature_5[0]))
     feature_0 = feature_matrix[0].flatten() #x
     feature_1 = feature_matrix[1].flatten() #y
@@ -70,9 +70,9 @@ def Gaussian_Mixture_Model(feature_matrix,cluster): # x,y,I,Ix,Iy,Ixy,Ixx,Iyy,k,
     # feature_9 = feature_matrix[9].flatten()
     # feature_10 = feature_matrix[10].flatten()
     # feature_11 = feature_matrix[11].flatten()
-    X = [np.append(np.array([feature_2[i],feature_3[i]]),feature_extra[i]*(feature_2[i]!=0)) for i in range(0,len(feature_2))]
+    X = [np.array([feature_2[i],feature_3[i]]) for i in range(0,len(feature_2))]
 
-    mean_initial = initail_mean(feature_matrix,cluster)
+    #mean_initial = initail_mean(feature_matrix,cluster)
     gmm_mean = np.transpose(GMM(n_components=cluster).fit(X).means_)
     
     #### fmin ####
@@ -132,7 +132,7 @@ def main(file):
     #####################
     # NUMBER OF CLUSTER #
     ##################### 
-    CLUSTER = 4
+    CLUSTER = 3
 
     chart_11 = []
     chart_12 = []
@@ -147,31 +147,32 @@ def main(file):
     #mean = Gaussian_Mixture_Model(image_feature_data)[1]
     #X = Gaussian_Mixture_Model(image_feature_data)[1]
     label = np.zeros((512,512))
-    for chart_no in range(4):
-        Y = Gaussian_Mixture_Model(atalas_class[chart_no],CLUSTER)[1]
+    for chart_no in range(1):
+        Y = Gaussian_Mixture_Model(image_feature_data,CLUSTER)[1]
         # location = Gaussian_Mixture_Model(atalas_class[chart_no],CLUSTER)[0]
         # print(location)
         # print(Y[0])
         label_local = []
+        
         for i in range(len(Y[0])):
             #print(Y[:,i])
             #print(np.where(np.amax(Y[:,i]))[0][0])
             #np.append(label,(np.where(np.amax(Y[:,i]))[0][0]))
             tmp = (Y[:,i]).tolist() 
-            label_local.append(tmp.index(max(tmp))+chart_no*CLUSTER)
+            label_local.append(tmp.index(max(tmp)))#+chart_no*CLUSTER)
         #print(label)
-        label_local = np.reshape(label_local,(256,256))
-        if chart_no == 0:
-            label[0:256,0:256] = np.array(label_local)
-        elif chart_no == 1:
-            label[0:256,256:512] = np.array(label_local)
-        elif chart_no == 2:
-            label[256:512,0:256] = np.array(label_local)
-        elif chart_no == 3:
-            label[256:512,256:512] = np.array(label_local)   
+    label_local = np.reshape(label_local,(512,512))
+        # if chart_no == 0:
+        #     label[0:256,0:256] = np.array(label_local)
+        # elif chart_no == 1:
+        #     label[0:256,256:512] = np.array(label_local)
+        # elif chart_no == 2:
+        #     label[256:512,0:256] = np.array(label_local)
+        # elif chart_no == 3:
+        #     label[256:512,256:512] = np.array(label_local)   
     
-    for i in range(CLUSTER*0,CLUSTER*4):
-        image = ds_pixel*(1-((label==i).astype(np.int)))
+    for i in range(CLUSTER*0,CLUSTER*1):
+        image = ds_pixel*(1-((label_local==i).astype(np.int)))
         #plt.imshow(image,cmap = plt.cm.bone)
         plt.suptitle("The label" + str(i))
         
