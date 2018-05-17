@@ -15,10 +15,11 @@ import time
 #import cv2
 import copy
 from sklearn import preprocessing
+import scipy.optimize as opt
 #File=['IM1.dcm']
 File=[]
 start=time.time()
-for i in range(82,83):
+for i in range(180,181):
     File.append('IM'+str(i))
                                         
 def convert2polar(x,y,image_size,center):
@@ -38,28 +39,39 @@ def image_feature(image, image_size):
     #image_xy = np.gradient(image_x)[0]
     #curvature_image = preprocessing.scale((image_x**2*image_yy + image_xx*image_y**2 - 2*image_xy)/((image_x**2+image_y**2 + 1e-04)**(3/2)))
     #det = image_xx * image_yy - image_xy**2
-    r = np.sqrt((location_x)**2+(location_y)**2)
-    theta = np.arctan2(location_y,location_x)
+    r = np.sqrt((location_x)**2+(location_y)**2) / (np.max(np.sqrt((location_x)**2+(location_y)**2)))
+    theta = np.arctan2(location_y,location_x) / (np.max(np.arctan2(location_y,location_x)))
     return[location_x,location_y,image,r,theta]#,curvature_image]
     #return[location_x/512,location_y/512,image/(np.amax(image) - np.amin(image))]#,r/(np.amax(r) - np.amin(r))]
 def Gaussian_Mixture_Model(feature_matrix,cluster): # x,y,I,Ix,Iy,Ixy,Ixx,Iyy,k,det,r,theta
-    #feature_0 = feature_matrix[0].flatten() #x
-    #feature_1 = feature_matrix[1].flatten() #y
-    feature_2 = feature_matrix[2].flatten()  #I
-    #feature_3 = feature_matrix[3].flatten() #r
-    feature_4 = feature_matrix[4].flatten()  #theta
-    #feature_5 = feature_matrix[5].flatten()  #curvature_image
-    """feature_6 = feature_matrix[6].flatten()
-    feature_7 = feature_matrix[7].flatten()
-    feature_8 = feature_matrix[8].flatten()
-    feature_9 = feature_matrix[9].flatten()
-    feature_10 = feature_matrix[10].flatten()
-    feature_11 = feature_matrix[11].flatten()"""
-    X = [[feature_4[i],feature_2[i]] for i in range(0,len(feature_2))]#,feature_3[i],feature_4[i],feature_5[i],feature_6[i],feature_7[i],feature_8[i],feature_9[i],feature_10[i],feature_11[i]] for i in range(0,len(feature_0))]
+    feature_0 = feature_matrix[0].flatten() #x
+    feature_1 = feature_matrix[1].flatten() #y
+    feature_2 = feature_matrix[2].flatten() #I
+    feature_3 = feature_matrix[3].flatten() #r
+    feature_4 = feature_matrix[4].flatten() #theta
+    # feature_5 = feature_matrix[5].flatten()  #curvature_image
+    # feature_6 = feature_matrix[6].flatten()
+    # feature_7 = feature_matrix[7].flatten()
+    # feature_8 = feature_matrix[8].flatten()
+    # feature_9 = feature_matrix[9].flatten()
+    # feature_10 = feature_matrix[10].flatten()
+    # feature_11 = feature_matrix[11].flatten()
+    X = [[feature_4[i],feature_2[i],feature_3[i]] for i in range(0,len(feature_2))]#,feature_3[i],feature_4[i],feature_5[i],feature_6[i],feature_7[i],feature_8[i],feature_9[i],feature_10[i],feature_11[i]] for i in range(0,len(feature_0))]
     gmm_mean = np.transpose(GMM(n_components=cluster).fit(X).means_)
-    Y = np.matmul(np.linalg.pinv(gmm_mean),np.transpose(X))
+    
+    #### fmin ####
+    Y = solve_matrix_lsq(X,gmm_mean)
+    #Y = np.matmul(np.linalg.pinv(gmm_mean),np.transpose(X))
     #labels = gmm.predict(X)
     return [gmm_mean,Y]
+
+def solve_matrix_lsq(X,M): #solve X = M*Y
+    Y = []
+    for i in range(0,len(X)):
+        tmp = opt.nnls(M,np.transpose(X[i]))
+        Y.append(tmp[0])
+    return np.transpose(Y)
+
 def atalas(input):
     return([input[0:256,0:256],input[0:256,256:512],input[256:512,0:256],input[256:512,256:512]])
 def main(file):
@@ -77,7 +89,7 @@ def main(file):
     #####################
     # NUMBER OF CLUSTER #
     ##################### 
-    CLUSTER = 15
+    CLUSTER = 5
 
     #polar_coordinate = convert2polar(image_feature_data[0],image_feature_data[1],pixel_size,int(pixel_size/2))
     chart_11 = []
@@ -95,6 +107,7 @@ def main(file):
     label = np.zeros((512,512))
     for chart_no in range(4):
         Y = Gaussian_Mixture_Model(atalas_class[chart_no],CLUSTER)[1]
+        #print(Y[0])
         label_local = []
         for i in range(len(Y[0])):
             #print(Y[:,i])
