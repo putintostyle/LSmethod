@@ -29,8 +29,8 @@ def convert2polar(x,y,image_size,center):
 
 def image_feature(image, image_size):
     center = 256
-    location_x = (np.array([np.arange(image_size).tolist() for i in range(image_size)])-center)/center
-    location_y = (np.array([(i*np.ones(image_size)).tolist() for i in range(image_size)])-center)/center
+    location_x = np.absolute(np.array([np.arange(image_size).tolist() for i in range(image_size)])-center)/center
+    location_y = np.absolute(np.array([(i*np.ones(image_size)).tolist() for i in range(image_size)])-center)/center
     image = preprocessing.scale(np.array(image))
     #image_x = np.gradient(image)[1]
     #image_y = np.gradient(image)[0]
@@ -40,15 +40,33 @@ def image_feature(image, image_size):
     #curvature_image = preprocessing.scale((image_x**2*image_yy + image_xx*image_y**2 - 2*image_xy)/((image_x**2+image_y**2 + 1e-04)**(3/2)))
     #det = image_xx * image_yy - image_xy**2
     r = np.sqrt((location_x)**2+(location_y)**2) / (np.max(np.sqrt((location_x)**2+(location_y)**2)))
-    theta = np.arctan2(location_y,location_x) / (np.max(np.arctan2(location_y,location_x)))
-    return[location_x,location_y,image,r,theta]#,curvature_image]
+    theta = np.arctan2(location_y,location_x) / (np.max(np.arctan2(location_y,location_x))-np.min(np.arctan2(location_y,location_x)))
+    return[location_x*(image != 0),location_y*(image != 0),image*(image != 0),r*(image != 0),theta*(image != 0)]#,curvature_image]
     #return[location_x/512,location_y/512,image/(np.amax(image) - np.amin(image))]#,r/(np.amax(r) - np.amin(r))]
+def local_feature(image):
+    feature = []
+    boundary_x = np.zeros((1,len(image)+2))
+    boundary_y = np.zeros((len(image),1))
+    image = np.append(boundary_y,image,axis = 1)
+    
+    image = np.append(image,boundary_y,axis = 1)
+    image = np.append(boundary_x,image,axis = 0)
+    image = np.append(image,boundary_x,axis = 0)
+    
+    for i in range(1,len(image)-1):
+        for j in range(1,len(image)-1):
+            feature.append([image[i-1:i+2,j-1:j+2].flatten()])
+    return np.array(feature)
 def Gaussian_Mixture_Model(feature_matrix,cluster): # x,y,I,Ix,Iy,Ixy,Ixx,Iyy,k,det,r,theta
+    #feature_5 = local_feature(feature_2)
+    feature_5 = local_feature(feature_matrix[2])
+    #print(np.shape(feature_5[0]))
     feature_0 = feature_matrix[0].flatten() #x
     feature_1 = feature_matrix[1].flatten() #y
     feature_2 = feature_matrix[2].flatten() #I
     feature_3 = feature_matrix[3].flatten() #r
     feature_4 = feature_matrix[4].flatten() #theta
+    
     # feature_5 = feature_matrix[5].flatten()  #curvature_image
     # feature_6 = feature_matrix[6].flatten()
     # feature_7 = feature_matrix[7].flatten()
@@ -56,7 +74,7 @@ def Gaussian_Mixture_Model(feature_matrix,cluster): # x,y,I,Ix,Iy,Ixy,Ixx,Iyy,k,
     # feature_9 = feature_matrix[9].flatten()
     # feature_10 = feature_matrix[10].flatten()
     # feature_11 = feature_matrix[11].flatten()
-    X = [[feature_4[i],feature_2[i],feature_3[i]] for i in range(0,len(feature_2))]#,feature_3[i],feature_4[i],feature_5[i],feature_6[i],feature_7[i],feature_8[i],feature_9[i],feature_10[i],feature_11[i]] for i in range(0,len(feature_0))]
+    X = [np.append(np.array([feature_2[i],feature_3[i],feature_4[i]]),feature_5[i]*(feature_2[i]!=0)) for i in range(0,len(feature_2))]#,feature_3[i],feature_4[i],feature_5[i],feature_6[i],feature_7[i],feature_8[i],feature_9[i],feature_10[i],feature_11[i]] for i in range(0,len(feature_0))]
     gmm_mean = np.transpose(GMM(n_components=cluster).fit(X).means_)
     
     #### fmin ####
@@ -89,9 +107,8 @@ def main(file):
     #####################
     # NUMBER OF CLUSTER #
     ##################### 
-    CLUSTER = 5
+    CLUSTER = 4
 
-    #polar_coordinate = convert2polar(image_feature_data[0],image_feature_data[1],pixel_size,int(pixel_size/2))
     chart_11 = []
     chart_12 = []
     chart_21 = []
@@ -107,7 +124,9 @@ def main(file):
     label = np.zeros((512,512))
     for chart_no in range(4):
         Y = Gaussian_Mixture_Model(atalas_class[chart_no],CLUSTER)[1]
-        #print(Y[0])
+        # location = Gaussian_Mixture_Model(atalas_class[chart_no],CLUSTER)[0]
+        # print(location)
+        # print(Y[0])
         label_local = []
         for i in range(len(Y[0])):
             #print(Y[:,i])
@@ -126,13 +145,13 @@ def main(file):
         elif chart_no == 3:
             label[256:512,256:512] = np.array(label_local)   
     
-    for i in range(CLUSTER*0,CLUSTER*1):
+    for i in range(CLUSTER*0,CLUSTER*4):
         image = ds_pixel*(1-((label==i).astype(np.int)))
-        plt.imshow(image,cmap = plt.cm.bone)
+        #plt.imshow(image,cmap = plt.cm.bone)
         plt.suptitle("The label" + str(i))
         
         plt.imsave("Cluster" + str(i)+".png",image,cmap = plt.cm.bone,  dpi = 1500)
-        plt.show() 
+        #plt.show() 
     #print(label[512*200+25])
     #segment = np.array(ds_pixel)*((1-(np.reshape((label == 8).astype(np.int),(512,512)))) + (1-(np.reshape((label == 9).astype(np.int),(512,512)))))
     #for i in range(10):
