@@ -19,7 +19,7 @@ import scipy.optimize as opt
 #File=['IM1.dcm']
 File=[]
 start=time.time()
-for i in range(180,181):
+for i in range(120,121):
     File.append('IM'+str(i))
                                         
 def convert2polar(x,y,image_size,center):
@@ -56,7 +56,7 @@ def Gaussian_Mixture_Model(feature_matrix,cluster): # x,y,I,Ix,Iy,Ixy,Ixx,Iyy,k,
     # feature_9 = feature_matrix[9].flatten()
     # feature_10 = feature_matrix[10].flatten()
     # feature_11 = feature_matrix[11].flatten()
-    X = [[feature_4[i],feature_2[i],feature_3[i]] for i in range(0,len(feature_2))]#,feature_3[i],feature_4[i],feature_5[i],feature_6[i],feature_7[i],feature_8[i],feature_9[i],feature_10[i],feature_11[i]] for i in range(0,len(feature_0))]
+    X = [[np.absolute(feature_4[i]),feature_2[i],feature_3[i]] for i in range(0,len(feature_2))]#,feature_3[i],feature_4[i],feature_5[i],feature_6[i],feature_7[i],feature_8[i],feature_9[i],feature_10[i],feature_11[i]] for i in range(0,len(feature_0))]
     gmm_mean = np.transpose(GMM(n_components=cluster).fit(X).means_)
     
     #### fmin ####
@@ -89,7 +89,7 @@ def main(file):
     #####################
     # NUMBER OF CLUSTER #
     ##################### 
-    CLUSTER = 5
+    CLUSTER = 3
 
     #polar_coordinate = convert2polar(image_feature_data[0],image_feature_data[1],pixel_size,int(pixel_size/2))
     chart_11 = []
@@ -104,30 +104,25 @@ def main(file):
     atalas_class = [chart_11,chart_12,chart_21,chart_22]              
     #mean = Gaussian_Mixture_Model(image_feature_data)[1]
     #X = Gaussian_Mixture_Model(image_feature_data)[1]
-    label = np.zeros((512,512))
-    for chart_no in range(4):
-        Y = Gaussian_Mixture_Model(atalas_class[chart_no],CLUSTER)[1]
-        #print(Y[0])
+    label = np.ones((512,512))
+    for chart_no in range(1):
+        Y = Gaussian_Mixture_Model(image_feature_data,CLUSTER)[1]
+        # location = Gaussian_Mixture_Model(atalas_class[chart_no],CLUSTER)[0]
+        # print(location)
+        print(Gaussian_Mixture_Model(image_feature_data,CLUSTER)[0])
         label_local = []
+        
         for i in range(len(Y[0])):
             #print(Y[:,i])
             #print(np.where(np.amax(Y[:,i]))[0][0])
             #np.append(label,(np.where(np.amax(Y[:,i]))[0][0]))
             tmp = (Y[:,i]).tolist() 
-            label_local.append(tmp.index(max(tmp))+chart_no*CLUSTER)
+            label_local.append(tmp.index(max(tmp)))#+chart_no*CLUSTER)
         #print(label)
-        label_local = np.reshape(label_local,(256,256))
-        if chart_no == 0:
-            label[0:256,0:256] = np.array(label_local)
-        elif chart_no == 1:
-            label[0:256,256:512] = np.array(label_local)
-        elif chart_no == 2:
-            label[256:512,0:256] = np.array(label_local)
-        elif chart_no == 3:
-            label[256:512,256:512] = np.array(label_local)   
+    label_local = np.reshape(label_local,(512,512))  
     
     for i in range(CLUSTER*0,CLUSTER*1):
-        image = ds_pixel*(1-((label==i).astype(np.int)))
+        image = ds_pixel*((label_local==i).astype(np.int))
         plt.imshow(image,cmap = plt.cm.bone)
         plt.suptitle("The label" + str(i))
         
