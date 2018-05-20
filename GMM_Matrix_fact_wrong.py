@@ -16,29 +16,30 @@ import time
 import copy
 from sklearn import preprocessing
 import scipy.optimize as opt
+import scipy.stats as static
 #File=['IM1.dcm']
 File=[]
 start=time.time()
-for i in range(180,181):
+for i in range(120,121):
     File.append('IM'+str(i))
                                         
-def image_feature(image, image_size):
-    center = 256
-    location_x = np.absolute(np.array([np.arange(image_size).tolist() for i in range(image_size)])-center)/center *(image != 0)
-    location_y = np.absolute(np.array([(i*np.ones(image_size)).tolist() for i in range(image_size)])-center)/center *(image != 0)
-    min_max_scaler  = preprocessing.MinMaxScaler()
-    image = preprocessing.scale(np.array(image))
-    image_x = np.gradient(image)[1] *(image != 0)
-    image_y = np.gradient(image)[0] *(image != 0)
+#def image_feature(image, image_size):
+    #center = 256
+    #location_x = np.absolute(np.array([np.arange(image_size).tolist() for i in range(image_size)])-center)/center *(image != 0)
+    #location_y = np.absolute(np.array([(i*np.ones(image_size)).tolist() for i in range(image_size)])-center)/center *(image != 0)
+    #min_max_scaler  = preprocessing.MinMaxScaler()
+    #image = preprocessing.scale(np.array(image))
+    #image_x = np.gradient(image)[1] *(image != 0)
+    #image_y = np.gradient(image)[0] *(image != 0)
     #image_xx = np.gradient(image_x)[1]
     #image_yy = np.gradient(image_y)[0]
     #image_xy = np.gradient(image_x)[0]
     #curvature_image = preprocessing.scale((image_x**2*image_yy + image_xx*image_y**2 - 2*image_xy)/((image_x**2+image_y**2 + 1e-04)**(3/2)))
     #det = image_xx * image_yy - image_xy**2
-    r = np.sqrt((location_x)**2+(location_y)**2) / (np.max(np.sqrt((location_x)**2+(location_y)**2)))
-    theta = np.arctan2(location_y,location_x) / (np.max(np.arctan2(location_y,location_x))-np.min(np.arctan2(location_y,location_x)))
+    #r = np.sqrt((location_x)**2+(location_y)**2) / (np.max(np.sqrt((location_x)**2+(location_y)**2)))
+    #theta = np.arctan2(location_y,location_x) / (np.max(np.arctan2(location_y,location_x))-np.min(np.arctan2(location_y,location_x)))
     
-    return[location_x,location_y,image,r,np.absolute(theta),image_x,image_y]#,curvature_image]
+    #return[location_x,location_y,image,r,np.absolute(theta),image_x,image_y]#,curvature_image]
 def local_feature(image,add):
     feature = []
     
@@ -49,43 +50,55 @@ def local_feature(image,add):
     image = np.append(image,boundary_y,axis = 1)
 
     boundary_x = np.zeros((add,len(image[0])))
-    print(np.shape(boundary_x))
-    print(np.shape(image))
     image = np.append(boundary_x,image,axis = 0)
     image = np.append(image,boundary_x,axis = 0)
     
     for i in range(add,len(image)-add):
         for j in range(add,len(image)-add):
-            feature.append([image[i-add:i+add+1,j-add:j+add+1].flatten()])
-            feature.append(np.var(image[i-add:i+add+1,j-add:j+add+1].flatten()))
-            feature.append(np.mean(image[i-add:i+add+1,j-add:j+add+1].flatten()))
+            window = image[i-add:i+add+1,j-add:j+add+1].flatten() 
+            
+            #feature.append(i for i in window)
+            tmp = []
+            tmp.append(np.var(window))
+            tmp.append(np.mean(window))
+            #feature.append(-np.sum(window*np.log2(window)))
+            if np.var(window) == 0:
+                tmp.append(0)
+                tmp.append(0)
+            else:
+                tmp.append((np.sum((window - np.mean(window))**3)/np.var(window)**3)/len(window))
+                tmp.append((np.sum((window - np.mean(window))**4)/np.var(window)**4)/len(window))
+            tmp.append(np.sqrt(np.sum(window**2)))
+            tmp.append(2**(-len(window))*(np.sum(window)))
+            feature.append((np.append(window ,tmp)))
             #feature.append
     return np.array(feature)
 def Gaussian_Mixture_Model(feature_matrix,cluster): # x,y,I,Ix,Iy,Ixy,Ixx,Iyy,k,det,r,theta
     #feature_5 = local_feature(feature_2)
     
-    feature_extra = local_feature(feature_matrix[2],2)
+    feature_extra = local_feature(feature_matrix,2)
+    
     #print(np.shape(feature_5[0]))
-    feature_0 = feature_matrix[0].flatten() #x
-    feature_1 = feature_matrix[1].flatten() #y
-    feature_2 = feature_matrix[2].flatten() #I
-    feature_3 = feature_matrix[3].flatten() #r
-    feature_4 = feature_matrix[4].flatten() #theta
-    feature_5 = feature_matrix[5].flatten() #I_x
-    feature_6 = feature_matrix[6].flatten() #I_y
+    # feature_0 = feature_matrix[0].flatten() #x
+    # feature_1 = feature_matrix[1].flatten() #y
+    # feature_2 = feature_matrix[2].flatten() #I
+    # feature_3 = feature_matrix[3].flatten() #r
+    # feature_4 = feature_matrix[4].flatten() #theta
+    # feature_5 = feature_matrix[5].flatten() #I_x
+    # feature_6 = feature_matrix[6].flatten() #I_y
 
-    feature_2_train = feature_matrix[2].flatten()[feature_matrix[2].flatten()!=0] #I
-    feature_3_train = feature_matrix[3].flatten()[feature_matrix[2].flatten()!=0] #r
-    feature_4_train = feature_matrix[4].flatten()[feature_matrix[2].flatten()!=0] #theta
-    feature_5_train = feature_matrix[5].flatten()[feature_matrix[2].flatten()!=0]  #I_x
-    feature_6_train = feature_matrix[6].flatten()[feature_matrix[2].flatten()!=0]  #I_y
+    # feature_2_train = feature_matrix[2].flatten()[feature_matrix[2].flatten()!=0] #I
+    # feature_3_train = feature_matrix[3].flatten()[feature_matrix[2].flatten()!=0] #r
+    # feature_4_train = feature_matrix[4].flatten()[feature_matrix[2].flatten()!=0] #theta
+    # feature_5_train = feature_matrix[5].flatten()[feature_matrix[2].flatten()!=0]  #I_x
+    # feature_6_train = feature_matrix[6].flatten()[feature_matrix[2].flatten()!=0]  #I_y
     
     # feature_7 = feature_matrix[7].flatten()
     # feature_8 = feature_matrix[8].flatten()
     # feature_9 = feature_matrix[9].flatten()
     # feature_10 = feature_matrix[10].flatten()
     # feature_11 = feature_matrix[11].flatten()
-    X_train = [np.append(feature_2[i],feature_extra[i]) for i in range(0,len(feature_2))]
+    X_train = [feature_extra[i] for i in range(0,len(feature_extra))]
     # X = [np.array([feature_2[i],feature_3[i]]) for i in range(0,len(feature_2))]
     #mean_initial = initail_mean(feature_matrix,cluster)
     gmm_mean = np.transpose(GMM(n_components=cluster).fit(X_train).means_)
@@ -115,7 +128,7 @@ def main(file):
     ds_pixel = ds.pixel_array
     #phi = (initial_level_set(pixel_size,390,130,20)) #390 130 20
 
-    image_feature_data = image_feature(ds_pixel,pixel_size)
+    #image_feature_data = image_feature(ds_pixel,pixel_size)
 
     #####################
     # NUMBER OF CLUSTER #
@@ -123,8 +136,8 @@ def main(file):
     CLUSTER = 5
 
     
-    Y = Gaussian_Mixture_Model(image_feature_data,CLUSTER)[1]
-    print(Gaussian_Mixture_Model(image_feature_data,CLUSTER)[0])
+    Y = Gaussian_Mixture_Model(ds_pixel,CLUSTER)[1]
+    print(Gaussian_Mixture_Model(ds_pixel,CLUSTER)[0])
     label_local = []
     
     for i in range(len(Y[0])):
