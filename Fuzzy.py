@@ -55,5 +55,4 @@ start=time.time()
 for i in File:
     main(i)
 end=time.time()
->>>>>>> 3fdfe8391865023af28d8de2f808f19d46e491c3
 print(end-start)

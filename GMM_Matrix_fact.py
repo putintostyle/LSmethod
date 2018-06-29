@@ -13,7 +13,7 @@ import math
 import numpy as np
 import time
 #import cv2
-import copy
+#import copy
 from sklearn import preprocessing
 import scipy.optimize as opt
 #File=['IM1.dcm']
